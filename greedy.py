@@ -1,14 +1,19 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Apr 17 09:27:45 2016
+############ The greedy algorithm for exemplar clustering #########
+# An implementation of the greedy algorithm that optimizes a function f()
+# under a cardinality constraint k. Also contains an implementation of the
+# examplar-based clustering function f() from 
+# https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
 
-@author: ericbalkanski
-"""
 
-import data
 import copy
 
-
+# The distance function, simple hamming distance for testing purposes
+def d(e1, e2):
+    score = 0
+    for i in range(len(e1)):
+        if e1[i] != e2[i]:
+            score += 1
+    return score
 
 # The loss function for the k-medoid problem defined in Section 3.1
 # of https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
@@ -23,7 +28,7 @@ def L(S, D):
     score = 0
     for e1 in D:
         def distance(e2):
-            return data.d(e1,e2)
+            return d(e1,e2)
         score += min(map(distance,S))
     return score
     
@@ -70,5 +75,6 @@ def greedy(V, D, k, e0):
                 bestElement = e
                 bestContribution = contribution
         S.append(bestElement)
+    print f(S,D,e0)
     return S
     
