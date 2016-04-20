@@ -75,6 +75,6 @@ def greedy(V, D, k, e0):
                 bestElement = e
                 bestContribution = contribution
         S.append(bestElement)
-    print f(S,D,e0)
-    return S
+    score = f(S,D,e0)
+    return (S,score)
     

@@ -1,0 +1,9 @@
+# spin up local machine in one window
+from local import local
+local('./sample/loc1',5,80,'./log/loc1',1)
+
+# for scoring, will spin one up on the oracle file and make sure inserts are sufficiently slow
+
+# in another, write data to local files
+from datamanager import datamanager
+datamanager('/Users/ealexander/Downloads/Crimes_-_2001_to_present(2).csv',100,200,.1,'./sample/oracle','./sample/central','./sample/loc1','./sample/loc2','./sample/loc3','./sample/loc4')

@@ -48,6 +48,6 @@ def main(filename, k, m, e0):
         D.append(e)
     
     # compute a good solution
-    S =  greedy.greedy(V,D,k,e0)
+    S, score =  greedy.greedy(V,D,k,e0)
     print S
     
