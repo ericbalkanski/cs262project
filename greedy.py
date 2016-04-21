@@ -10,7 +10,7 @@ import copy
 # The distance function, simple hamming distance for testing purposes
 def d(e1, e2):
     score = 0
-    for i in range(len(e1)):
+    for i in len(e1):
         if e1[i] != e2[i]:
             score += 1
     return score

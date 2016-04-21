@@ -15,7 +15,7 @@
 # Imports:
 #   greedy: our module, see greedy.py
 #   socket: sends messages between local and central machines
-#   json: encodes objects to be sent over wire
+#   json: encodes data to be sent over wire
 #   csv.reader: separates data elements without splitting on commas
 #               within quoted strings, as are found in our data
 #   os.stat: returns file information, inc time of last update st_mtime
@@ -23,6 +23,7 @@
 # TODO:
 # - write dist fn between sets of reps
 # - cleverer sending scheme than whole new set?
+#############################################
 
 import greedy
 import socket
@@ -30,67 +31,79 @@ import json
 from csv import reader
 from os import stat
 
-def local(filename, k, portCentralMachine, logfile, threshold):
+def local(filename, k, portCentralMachine, threshold, idnum):
     
     # time of last file update
     lastupdate = 0
     
     # open log
-    loclog = open(logfile,'w')
+    if portCentralMachine > 0:
+        # for regular machine, delete old log
+        logfile = './log/loc' + str(idnum)
+        loclog = open(logfile,'w')
+        loclog.write('LOCAL, k: ' + str(k) + ', threshold: ' + str(threshold))
+    else:
+        # for oracle machine, append to old log
+        logfile = './log/oracle'
+        loclog = open(logfile,'a')
     
-    # make dummy entry
+    # make dummy entry for greedy alg
     linelen = 22 # magic number for now, num fields
     e0 = "z,"*(linelen-1)+"z"
     
-    # keep track of reps to central machine
+    # keep track of reps sent to central machine
     reps = []
     
     # monitor source file for updates
     while True:
-
-        if lastupdate < stat(filename).st_mtime:
         
-            # update timestamp
-            lastupdate = stat(filename).st_mtime
+        try:
 
-            # read data
-            lines = open(filename, 'r')
-            V = []
-            for line in reader(lines): #comma splitting, respects " "
-                if len(line) == linelen:
-                    V.append(line)
-            lines.close()
+            if lastupdate < stat(filename).st_mtime:
+        
+                # update timestamp
+                lastupdate = stat(filename).st_mtime
 
-            # find representatives
-            print '********************'
-            print '# data points ', len(V)
-            if len(V) <= k:
-                S = V
-                score = -1
-            else:
-                S,score = greedy.greedy(V,V,k,e0)
-            print '********************'
-            print S
+                # read data
+                lines = open(filename, 'r')
+                V = []
+                for line in reader(lines): #comma splitting, respects " "
+                    if len(line) == linelen: # ignore partial lines
+                        V.append(line)
+                lines.close()
+
+                # find representatives
+                print '********************'
+                numpts = len(V)
+                print '# data points ', numpts
+                if numpts <= k:
+                    S = V
+                    score = -1
+                else:
+                    S,score = greedy.greedy(V,V,k,e0)
+                print '********************'
+                print S
             
-            # record score (most important for oracle)
-            print 'time: ' + str(lastupdate) + '\t score: ' + str(score)
-            loclog.write(str(lastupdate) + '\t' + str(score) + '\n')
+                # record score (most important for oracle)
+                print 'time: ' + str(lastupdate) + '\t entries: ' + str(numpts) +'\t score: ' + str(score)
+                loclog.write(str(lastupdate) + '\t' +  str(numpts) + '\t' + str(score) + '\n')
     
-            # compare S to preexisting reps
-            if reps:
-                diff = threshold*2 # TODO: dist(S,reps)
-            else:
-                reps = S
-                diff = threshold+1
+                # compare S to preexisting reps
+                if reps:
+                    diff = threshold+(numpts>k) # TODO: dist(S,reps)
+                else:
+                    reps = S
+                    diff = threshold+(numpts>k)
     
-            # send representatives to central machine
-            if diff > threshold:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect(('', portCentralMachine))
-                sock.send(json.dumps(S))
-                sock.close()
-                reps = S
-
-
-
-
+                # check if sending to central machine is possible
+                if portCentralMachine < 0:
+                    break
+    
+                # send representatives to central machine
+                if diff > threshold:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.connect(('', portCentralMachine))
+                    sock.send(json.dumps((idnum,S)))
+                    sock.close()
+                    reps = S
+        except: pass
