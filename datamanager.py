@@ -30,6 +30,18 @@ from itertools import islice
 from random import randint
 from time import sleep
 
+def formatDateandOther(source, out, size):
+    data = open(source,'r')
+    output = open(out,'w')
+    count = 0
+    count2 = 0
+    for datum in islice(data,1,size):
+        count += 1
+        if not "\"" in datum:
+            count2 += 1
+            output.write(datum[6:10] + datum[datum.index(","): -1]+"\n")
+    print count, count2
+
 def datamanager(source,initsize,maxsize,timescale,foracle,fcentral,*args):
     
     # open source file
@@ -54,6 +66,7 @@ def datamanager(source,initsize,maxsize,timescale,foracle,fcentral,*args):
     # write initial data to machine files
     for datum in islice(data,1,initsize):
         # randomly select machine for insert
+        print datum
         finsert = randint(1,maxf-1)
         f[finsert].write(datum)
         # give all data to oracle
