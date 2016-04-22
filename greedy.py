@@ -5,7 +5,6 @@
 # https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
 
 
-import copy
 
 # The distance function, simple hamming distance for testing purposes
 def d(e1, e2):
@@ -24,14 +23,13 @@ def d(e1, e2):
 #   An integer corresponding to the loss from having S as exemplars
 # Dependencies:
 #   uses the distance function d(.,.) that is dependent on the application
-def L(S, D):
+def L(e0, D, new, closest):
     score = 0
     for e1 in D:
-        def distance(e2):
-            return d(e1,e2)
-        score += min(map(distance,S))
+        score += min(closest[str(e1)], d(e1, new))
     return score
     
+"""   
 # Computes the value of set S over ground set D as described in Section 3.1
 # of https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
 # Input:
@@ -42,10 +40,9 @@ def L(S, D):
 #   An integer corresponding to the value of S
 # Dependencies:
 #   uses the loss L() function defined above
-def f(S, D, e0):
-    copyS = copy.deepcopy(S)
-    copyS.append(e0)
-    return L([e0], D) - L(copyS, D)
+#def f(S, D, e0):
+#    return  - L(S,e0, D)
+"""
     
 # The classical greedy algorithm for maximizing f() with at most k elements
 # Input:
@@ -60,21 +57,27 @@ def f(S, D, e0):
 #   uses the function f() that we wish to optimize defined above
 def greedy(V, D, k, e0): 
     S = []
+    closest = dict()
+    losse0 = 0
+    for e in D:
+        loss = d(e,e0)
+        closest[str(e)] = loss
+        losse0 += loss
     for i in range(k):
+        print i
         bestElement = V[0]
-        fS = f(S, D, e0)
-        copyS = copy.deepcopy(S)
-        copyS.append(V[0])
-        bestContribution = f(copyS, D, e0) - fS
-        copyS.remove(V[0])
+        lS = L(e0, D,e0,closest)
+        bestContribution = lS - L(e0, D,V[0],closest)
         for e in V:
-            copyS.append(e)
-            contribution = f(copyS, D, e0) - fS
-            copyS.remove(e)
+            contribution = lS - L(e0, D,e,closest)
             if contribution > bestContribution:
                 bestElement = e
                 bestContribution = contribution
         S.append(bestElement)
-    score = f(S,D,e0)
+        for e in D:
+            distBeste = d(e,bestElement)
+            if distBeste < closest[str(e)]:
+                closest[str(e)] = distBeste
+    score = losse0 - L(e0,D,e0,closest)
     return (S,score)
     
