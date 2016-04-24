@@ -23,10 +23,13 @@
 #   time.sleep: allows pause before and between updates
 #   os.rename: allows swap file for deleting entries
 #   local.local: runs local machine, allows oracle score to be logged
+#   csv.reader: separates data elements without splitting on commas
+#               within quoted strings, as are found in our data
+#   multiprocessing: starts local, central, and oracle simulations
 #
 # TODO:
-# - rather than long-pausing, start machines?
-# - read from website rather than downloaded source file??
+# - read from website?
+# - document each function
 #############################################
 
 from itertools import islice
@@ -34,18 +37,41 @@ from random import randint, random
 from time import sleep
 from os import rename
 from local import local
+from central import central
+from csv import reader
+import multiprocessing
 
-def datamanager(source,initsize,maxsize,timescale,deleteprob,k,threshold,logoracle,foracle,fcentral,*args):
-    
-    # open source file
+
+# select features. we keep time of day, primary crime type,
+# location description, arrest (boolean), domestic (boolean),
+# and district #. See Chicago crime database for details.
+def features(d):
+    # sort times into 6 4-hour windows
+    timestr = d[2]
+    hour = int(timestr[11:13]) + 12*(timestr[20:22] == 'PM')
+    if hour <= 4:
+        timeofday = 'LATE NIGHT'
+    elif hour <= 8:
+        timeofday = 'EARLY MORNING'
+    elif hour <= 12:
+        timeofday = 'MORNING'
+    elif hour <= 16:
+        timeofday = 'AFTERNOON'
+    elif hour <= 20:
+        timeofday = 'EVENING'
+    else:
+        timeofday = 'NIGHT'
+    # selects time of day, primary description (e.g. 'THEFT'), location
+    # description (e.g. 'STREET') -- in "" because some of these contain
+    # commas, whether there was an arrest, whether it was domestic, and
+    # the district in which it occured
+    return timeofday+','+d[5]+',"'+d[7]+'",'+d[8]+','+d[9]+','+d[11]+'\n'
+
+#
+def initialinsert(source,initsize,foracle,fcentral,*args):
+   # open source file
     data = open(source,'r')
     print 'source file open'
-    
-    # determine limits of data
-    if not maxsize:
-        maxsize = initsize;
-        # maxsize = sum(1 for datum in data) # size of source
-    initsize = min(initsize,maxsize)
     
     # open machine files
     f = []
@@ -54,82 +80,133 @@ def datamanager(source,initsize,maxsize,timescale,deleteprob,k,threshold,logorac
     for arg in args:
         f.append(open(arg,'w'))
     maxf = len(f)
-    print 'machine files open, ', maxf-2, 'local'
-
+    print 'machine files open, ', maxf-2, ' local'
+    
     # write initial data to machine files
-    for datum in islice(data,1,initsize):
+    for d in reader(islice(data,1,initsize)):
+        # only record selected features
+        datum = features(d)
         # randomly select machine for insert
         finsert = randint(1,maxf-1)
         f[finsert].write(datum)
         # give all data to oracle
         f[0].write(datum)
-
-    # close machine files and pause to allow other processes to start
+    
+    # close files
     for i in range(0,maxf-1):
         f[i].close()
+    data.close()
     print 'data initialized'
-    sleep(10*timescale)
-    print 'beginning insertion'
 
+#
+def update(source,initsize,maxsize,deleteprob,timescale,k,foracle,fcentral,*args):
+    # read data from file
+    data = open(source,'r')
+    
+    # number of files
+    maxf = len(args)+2
+    
     # perform insertions
-    for datum in islice(data,initsize+1,maxsize):
+    for d in reader(islice(data,initsize,maxsize+1)):
+        
+        # only record selected features
+        datum = features(d)
+        
         # delete with probability deleteprob
         if random() < deleteprob:
-            # pick machine and line to delete
-            fdelete = randint(1,maxf-1)
-            if fdelete == 1:
-                f = open(fcentral,'?')
-            else:
-                f = open(args[fdelete-2],'?')
-            # stop if there's nothing in the file
-            fsize = sum(1 for entry in f)
-            if not fsize:
-                continue
-            # select entry to delete
-            edelete = randint(0,fsize-1)
-            # delete entry
-            swap = open('./swap')
-            for i,entry in enumerate(f):
-                if i != edelete:
-                    swap.write(entry)
-                else:
-                    deleted = entry
-            f.close()
-            swap.close()
-            if fdelete == 1:
-                rename('./swap',fcentral)
-            else:
-                rename('./swap',args[fedelte-2])
-            # also delete from oracle file
-            swap = open('./swap')
-            for entry in open(foracle,'r'):
-                if entry != deleted:
-                    swap.write(entry)
-            foracle.close()
-            swap.close()
-            rename('./swap',foracle)
+            dodelete(maxf,foracle,fcentral,*args)
+        
         # randomly select machine for insert
         finsert = randint(1,maxf-1)
+        
         # write data to machine file
-        print 'inserting to machine ', finsert
         if finsert == 1:
+            print 'inserting to central machine'
             f = open(fcentral,'a')
             f.write(datum)
             f.close
         else:
+            print 'inserting to local machine ' + str(finsert-2)
             f = open(args[finsert-2],'a')
             f.write(datum)
             f.close
+
         # give all data to oracle
         oracle = open(foracle,'a')
         oracle.write(datum)
         oracle.close()
+
         # get oracle score
-        local(foracle,k,-1,logoracle,threshold)
+        local(foracle,k,-1,0,-1)
+
         # pause between insertions
         sleep(timescale)
-
+    
     # after all data inserted, close all files
-    print 'out of data, closing files.', maxsize, ' datapoints used'
-    oracle.close()
+    print 'out of data, closing source file.', maxsize, ' datapoints used'
     data.close()
+
+#
+def dodelete(maxf,foracle,fcentral,*args):
+    # pick machine and line to delete
+    fdelete = randint(1,maxf-1)
+    if fdelete == 1:
+        f = open(fcentral,'?')
+    else:
+        f = open(args[fdelete-2],'?')
+   
+   # stop if there's nothing in the file
+    fsize = sum(1 for entry in f)
+    if not fsize:
+        return
+    
+    # select entry to delete
+    edelete = randint(0,fsize-1)
+
+    # delete entry
+    swap = open('./swap')
+    for i,entry in enumerate(f):
+        if i != edelete:
+            swap.write(entry)
+        else:
+            deleted = entry
+    f.close()
+    swap.close()
+    if fdelete == 1:
+        rename('./swap',fcentral)
+    else:
+        rename('./swap',args[fedelte-2])
+
+    # also delete from oracle file
+    swap = open('./swap')
+    for entry in open(foracle,'r'):
+        if entry != deleted:
+            swap.write(entry)
+    foracle.close()
+    swap.close()
+    rename('./swap',foracle)
+
+#
+def datamanager(source,initsize,maxsize,timescale,deleteprob,k,thresholds,baseport,foracle,fcentral,*args):
+    
+    # insert initial data
+    initialinsert(source,initsize,foracle,fcentral,*args)
+    
+    # determine limits of data
+    #if maxsize < initsize:
+    #    maxsize = initsize;
+        # maxsize = sum(1 for datum in data) # size of source
+        
+    # start processes
+    for t in thresholds:
+        port = baseport + t
+        c = multiprocessing.Process(target=central, args=('./sample/central',k,port,len(args),))
+        c.start()
+        for m,arg in enumerate(args):
+            l = multiprocessing.Process(target=local, args=(arg,k,port,t,m,))
+            l.start()
+
+    # update data with insertions and deletions
+    print 'beginning insertion'
+    update(source,initsize,maxsize,deleteprob,timescale,k,foracle,fcentral,*args)
+

@@ -17,9 +17,8 @@
 #   json: decodes data sent over wire
 #   csv.reader: separates data elements without splitting on commas
 #               within quoted strings, as are found in our data
-#
-# TODO:
-# - track which data comes from whom
+#   time.time: records system time for logging
+#   os.stat: checks file sizes to set buffer size
 #############################################
 
 import socket
@@ -27,11 +26,12 @@ import greedy
 import json
 from csv import reader
 from time import time
+from os import stat
 
 def central(filename, k, port, m):
     
     # make dummy entry for greedy alg
-    linelen = 22 # magic number for now, num fields
+    linelen = 6 # magic number for now, num fields
     e0 = "z,"*(linelen-1)+"z"
     e1 = "a,"*(linelen-1)+"a"
     
@@ -41,28 +41,31 @@ def central(filename, k, port, m):
     s.listen(1)
     
     # open log
-    logfile = './log/central'
+    logfile = './log/central_port' + str(port)
     centlog = open(logfile,'w')
-    centlog.write('CENTRAL, k: ' + str(k) + ',  # machines: ' + str(m))
+    print 'CENTRAL started on port ' + str(port)
+    centlog.write('CENTRAL, port:' + str(port) + 'k: ' + str(k) + ',  # machines: ' + str(m) + '\n')
+    centlog.close()
     
     # initialize recevied reps
-    V = [e1,]*m
+    V = [[],]*m
     
     # receive local solutions
     while True:
         
         # get local reps
         conn, addr = s.accept()
-        data = conn.recv(1024)
+        bufsize = 10*stat(filename).st_size # how much data to receive, estimate
+        data = conn.recv(bufsize)
         conn.close()
 
         # process received reps
         i,Vi = json.loads(data)
-        print "Received:"
-        print Vi
-        print 'from machine ' + str(i)
+        print 'CENTRAL port ' + str(port) + ', data received from machine ' + str(i)
         V[i] = Vi
-        print V
+        Vflat = []
+        for v in V:
+            Vflat += v
 
         # load local data to be represented
         lines = open(filename, 'r')
@@ -73,14 +76,12 @@ def central(filename, k, port, m):
         lines.close()
 
         # compute representatives of local data from received reps
-        print '********************'
-        numpts = len(D)
-        print '# data points ', numpts
-        S, score =  greedy.greedy(V,D,k,e0)
-        print '********************'
-        print S
+        S, score =  greedy.greedy(Vflat,D,k,e0)
 
         # log reps and scores
         now = time()
-        print 'time: ' + str(now) + '\t entries: ' + str(numpts) +'\t score: ' + str(score)
-        centlog.write(str(now) + '\t' +  str(numpts) + '\t' + str(score) + '\t' + S + '\n')
+        numpts = len(D)
+        print 'CENTRAL port ' + str(port)+ ', \t time: ' + str(now) + '\t entries: ' + str(numpts) +'\t score: ' + str(score)
+        centlog = open(logfile,'a')
+        centlog.write(str(now) + '\t' +  str(numpts) + '\t' + str(score) + '\t' + str(S) + '\n')
+        centlog.close()
