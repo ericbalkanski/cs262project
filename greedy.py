@@ -5,6 +5,7 @@
 # https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
 
 
+import copy
 
 # The distance function, simple hamming distance for testing purposes
 def d(e1, e2):
@@ -28,7 +29,18 @@ def L(e0, D, new, closest):
     for e1 in D:
         score += min(closest[str(e1)], d(e1, new))
     return score
-    
+
+def loss(S,D):
+    score = 0
+    for e1 in D:
+        closest = 10000
+        for e2 in S:
+            dist = d(e1,e2)
+            if dist < closest:
+                closest = dist
+        score += closest
+    return score
+
 """   
 # Computes the value of set S over ground set D as described in Section 3.1
 # of https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
@@ -80,4 +92,10 @@ def greedy(V, D, k, e0):
                 closest[str(e)] = distBeste
     score = losse0 - L(e0,D,e0,closest)
     return (S,score)
+
+
+def score(S,D,e0):
+    copyS = copy.deepcopy(S)
+    copyS.append(e0)
+    return loss([e0],D) - loss(copyS,D)
     
