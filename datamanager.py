@@ -21,11 +21,13 @@
 #   random.randint: generates random integers for machine selection
 #   random.random: generates random floats between 0 and 1, for deletion
 #   time.sleep: allows pause before and between updates
+#   time.time: allows system time in logs
 #   os.rename: allows swap file for deleting entries
 #   local.local: runs local machine, allows oracle score to be logged
 #   csv.reader: separates data elements without splitting on commas
 #               within quoted strings, as are found in our data
 #   multiprocessing: starts local, central, and oracle simulations
+#   greedy.score: score central machine solutions
 #
 # TODO:
 # - read from website?
@@ -34,12 +36,14 @@
 
 from itertools import islice
 from random import randint, random
-from time import sleep
+from time import sleep, time
 from os import rename
-from local import local
-from central import central
 from csv import reader
 import multiprocessing
+
+from local import local
+from central import central
+from greedy import score
 
 
 # select features. we keep time of day, primary crime type,
@@ -61,11 +65,20 @@ def features(d):
         timeofday = 'EVENING'
     else:
         timeofday = 'NIGHT'
+
     # selects time of day, primary description (e.g. 'THEFT'), location
     # description (e.g. 'STREET') -- in "" because some of these contain
     # commas, whether there was an arrest, whether it was domestic, and
     # the district in which it occured
     return timeofday+','+d[5]+',"'+d[7]+'",'+d[8]+','+d[9]+','+d[11]+'\n'
+
+    # Boston data differs from Chicago
+    # print 'WARNING Boston data'
+    # if d[1] == 'ARREST' or d[2] == 'Arrest' or d[3] == 'Arrest':
+    #       isarrest = 'true'
+    # else:
+    #   isarrest = 'false'
+    # return d[10]+','+d[2]+',"NA",'+isarrest+','+d[9]+','+d[4]+'\n'
 
 #
 def initialinsert(source,initsize,foracle,fcentral,*args):
@@ -99,7 +112,7 @@ def initialinsert(source,initsize,foracle,fcentral,*args):
     print 'data initialized'
 
 #
-def update(source,initsize,maxsize,deleteprob,timescale,k,foracle,fcentral,*args):
+def update(source,initsize,maxsize,deleteprob,timescale,k,baseport,thresh,isoracle,foracle,fcentral,*args):
     # read data from file
     data = open(source,'r')
     
@@ -136,12 +149,48 @@ def update(source,initsize,maxsize,deleteprob,timescale,k,foracle,fcentral,*args
         oracle.write(datum)
         oracle.close()
 
-        # get oracle score
-        local(foracle,k,-1,0,-1)
+        if isoracle:
+            # get oracle score
+            local(foracle,k,-1,0,-1)
+        
+            # pause between insertions
+            sleep(timescale)
+        
+            # score current central solutions
+            for p in thresh:
+                # get central solution
+                port = baseport+p
+                fcentreps = './log/central_solution_'+str(port)
+                try:
+                    centreps = open(fcentreps,'r')
+                    centsol = []
+                    for rep in reader(centreps):
+                        centsol.append(rep)
+                    centreps.close()
+            
+                    # get all data
+                    Voracle = []
+                    alldata = open(foracle,'r')
+                    for datum in reader(alldata):
+                        Voracle.append(datum)
+                    alldata.close()
+            
+                    # score central solution
+                    e0 = "z,"*5+"z"
+                    if centsol:
+                        centscore = score(centsol,Voracle,e0)
+            
+                    # record central solution
+                    numpts = len(Voracle)
+                    now = time()
+                    print 'oracle score for central on port ' + str(port) + ' with ' + str(numpts) + ' points: ' + str(centscore)
+                    fscore = open('./log/central_score_'+str(port),'a')
+                    fscore.write(str(now) + '\t' +  str(numpts) + '\t' + str(centscore) + '\n')
+                    fscore.close()
+                    
+                except IOError:
+                        pass
 
-        # pause between insertions
-        sleep(timescale)
-    
     # after all data inserted, close all files
     print 'out of data, closing source file.', maxsize, ' datapoints used'
     data.close()
@@ -187,7 +236,7 @@ def dodelete(maxf,foracle,fcentral,*args):
     rename('./swap',foracle)
 
 #
-def datamanager(source,initsize,maxsize,timescale,deleteprob,k,thresholds,baseport,foracle,fcentral,*args):
+def datamanager(source,initsize,maxsize,timescale,deleteprob,k,thresholds,baseport,isoracle,foracle,fcentral,*args):
     
     # insert initial data
     initialinsert(source,initsize,foracle,fcentral,*args)
@@ -198,15 +247,16 @@ def datamanager(source,initsize,maxsize,timescale,deleteprob,k,thresholds,basepo
         # maxsize = sum(1 for datum in data) # size of source
         
     # start processes
-    for t in thresholds:
-        port = baseport + t
-        c = multiprocessing.Process(target=central, args=('./sample/central',k,port,len(args),))
-        c.start()
-        for m,arg in enumerate(args):
-            l = multiprocessing.Process(target=local, args=(arg,k,port,t,m,))
-            l.start()
+    #for t in thresholds:
+    t = thresholds
+    port = baseport + t
+    c = multiprocessing.Process(target=central, args=('./sample/central',k,port,len(args),))
+    c.start()
+    for m,arg in enumerate(args):
+        l = multiprocessing.Process(target=local, args=(arg,k,port,t,m,))
+        l.start()
 
     # update data with insertions and deletions
     print 'beginning insertion'
-    update(source,initsize,maxsize,deleteprob,timescale,k,foracle,fcentral,*args)
+    update(source,initsize,maxsize,deleteprob,timescale,k,baseport,thresholds,isoracle,foracle,fcentral,*args)
 

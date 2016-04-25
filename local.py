@@ -27,6 +27,7 @@
 import greedy
 import socket
 import json
+import copy
 from csv import reader
 from os import stat
 
@@ -82,28 +83,33 @@ def local(filename, k, port, threshold, idnum):
                 else:
                     S,score = greedy.greedy(V,V,k,e0)
                 #print '********************'
-
-            
+                
+                # check if it's an oracle
+                if port < 0:
+                    print 'oracle on port '+ str(port) + ', \t time: ' + str(lastupdate) + '\t entries: ' + str(numpts) +'\t oracle score: ' + str(score)
+                    loclog = open(logfile,'a')
+                    loclog.write(str(lastupdate) + '\t' +  str(numpts) + '\t' + str(score) + '\n')
+                    loclog.close()
+                    return
+                        
                 # record score (most important for oracle)
                 print 'local ' + str(idnum) + ' on port '+ str(port) + ', \t time: ' + str(lastupdate) + '\t entries: ' + str(numpts) +'\t score: ' + str(score)
                 loclog = open(logfile,'a')
                 loclog.write(str(lastupdate) + '\t' +  str(numpts) + '\t' + str(score) + '\n')
                 loclog.close()
-                
-                # check if sending to central machine is possible
-                if port < 0:
-                    return
     
                 # compare S to preexisting reps
-                if len(S) == k:
+                if reps and len(S) == k:
                     diff = k
                     for i in range(k):
                         for j in range(len(reps)):
                             if S[i] == reps[j]:
                                 diff -= 1
+                                #print S[i]
+                                #print reps[j]
                                 break
                 else: # on first k calculations
-                    reps = S
+                    reps = copy.deepcopy(S)
                     diff = threshold+1
     
                 # send representatives to central machine
@@ -114,6 +120,6 @@ def local(filename, k, port, threshold, idnum):
                     sock.connect(('', port))
                     sock.send(json.dumps((idnum,S)))
                     sock.close()
-                    reps = S
+                    reps = copy.deepcopy(S)
                         
         except IOError: pass # if data file won't open, keep trying

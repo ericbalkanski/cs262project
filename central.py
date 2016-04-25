@@ -24,6 +24,7 @@
 import socket
 import greedy 
 import json
+import copy
 from csv import reader
 from time import time
 from os import stat
@@ -62,7 +63,7 @@ def central(filename, k, port, m):
         # process received reps
         i,Vi = json.loads(data)
         print 'CENTRAL port ' + str(port) + ', data received from machine ' + str(i)
-        V[i] = Vi
+        V[i] = copy.deepcopy(Vi)
         Vflat = []
         for v in V:
             Vflat += v
@@ -77,7 +78,7 @@ def central(filename, k, port, m):
 
         # compute representatives of local data from received reps
         S, score =  greedy.greedy(Vflat,D,k,e0)
-
+        
         # log reps and scores
         now = time()
         numpts = len(D)
@@ -85,3 +86,11 @@ def central(filename, k, port, m):
         centlog = open(logfile,'a')
         centlog.write(str(now) + '\t' +  str(numpts) + '\t' + str(score) + '\t' + str(S) + '\n')
         centlog.close()
+
+        # write current solution so people, oracle can read it
+        fsoln = './log/central_solution_' + str(port)
+        f = open(fsoln,'w')
+        for rep in S:
+            towrite = rep[0]+','+rep[1]+',"'+rep[2]+'",'+rep[3]+','+rep[4]+','+rep[5]+'\n'
+            f.write(towrite)
+        f.close()
