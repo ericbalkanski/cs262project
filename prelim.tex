@@ -1,0 +1,7 @@
+\section{Preliminaries}
+\label{s:prelim}
+\subsection{Submodularity}
+To find a “good” set of representatives, the literature relies on an objective function f(.) which maps sets of representatives S to a value measuring the quality of the representation by S. These functions are often submodular: they exhibit the natural notion of diminishing marginal return. A function f(.)  is submodular if f(S U {e}) - f(S) >= f(T U {e}) - f(T) for all set T, subset S of T, and element e. This definition says that as a set grows larger (from S to T), the contribution of an element e diminishes. The submodularity property is especially nice because the simple greedy algorithm, which iteratively picks the element with the largest contribution, is guaranteed to find a set S that is a 1-1/e approximation to the optimal solution, i.e., f(S) >= (1-1/e) f(S*) where S* maximizes f(). 
+
+\subsection{Previous Algorithm}
+The algorithm of Mirzasoleiman et al. is a simple two-stage process. Local representatives are greedily selected for each machines and sent to a central machine that greedily chooses representatives from the collection of all the local representatives.
