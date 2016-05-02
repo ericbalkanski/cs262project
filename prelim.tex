@@ -1,7 +1,31 @@
 \section{Preliminaries}
 \label{s:prelim}
-\subsection{Submodularity}
-To find a “good” set of representatives, the literature relies on an objective function f(.) which maps sets of representatives S to a value measuring the quality of the representation by S. These functions are often submodular: they exhibit the natural notion of diminishing marginal return. A function f(.)  is submodular if f(S U {e}) - f(S) >= f(T U {e}) - f(T) for all set T, subset S of T, and element e. This definition says that as a set grows larger (from S to T), the contribution of an element e diminishes. The submodularity property is especially nice because the simple greedy algorithm, which iteratively picks the element with the largest contribution, is guaranteed to find a set S that is a 1-1/e approximation to the optimal solution, i.e., f(S) >= (1-1/e) f(S*) where S* maximizes f(). 
+\subsection{Setup} There is a ground set $N = \{e_1, \ldots, e_n\}$ of elements. The goal is to pick a small set $S \subseteq N$ of size at most some integer $k$ that is a good summary of $N$. To measure the quality of a summary, we consider a clustering function measuring the loss $l(S)$ associated with a metric distance $d(e_i, e_j)$. The distance $d(e_i, e_j)$ between two elements $e_i$ and $e_j$ measures how similar these two elements are, this distance function is general and defined differently for different applications. An example of a distance function in the case where elements consists of multiple feature is the hamming distance between these two elements, i.e., how many features they differ on. Once we have a distance function, the clustering function loss $l(S)$ is then the sum over all elements in  $N$ of their distance to their best representative,i.e.,
+%
+$$l(S) = \sum_{e_i \in N} \min_{e_j \in S} d(e_i, e_j).$$
+%
 
-\subsection{Previous Algorithm}
-The algorithm of Mirzasoleiman et al. is a simple two-stage process. Local representatives are greedily selected for each machines and sent to a central machine that greedily chooses representatives from the collection of all the local representatives.
+
+
+\subsection{Submodularity}
+The objective function $f(S)$ is then defined to be 
+%
+$$f(S) := l(e_0) - l(S \cup e_0)$$
+%
+ for some auxiliary element $e_0$. The motivation for this definition is that $f(S)$ is monotone submodular. Submodularity is the desirable property of diminishing marginal return. Submodularity is desirable because it allows for theoretical guarantees. More precisely, the simple greedy algorithm is a $1-1/e$ approximation algorithm for maximizing a submodular function $f(S)$ under a cardinality constraint, i.e., 
+ $$
+ \max_{\substack{|S| \leq k \\ S \subseteq N}}f(S).
+ $$
+ Our goal is therefore a distributed algorithm for this optimization problem with the above definition of $f(S)$ and where insertions and deletions on the ground set $N$ of elements occur.
+
+\subsection{Approximation ratio} The performance of an algorithm, i.e., the quality of the summary it computes, is measured by the approximation ratio $\alpha$ obtained by this algorithm, which is the ration of the value of the solution it computes to the value of the optimal solution. More precisely, let $S$ be the set returned by an algorithm, this solution is an $\alpha$-approximation if 
+%
+$$f(S) \geq \alpha \cdot f(S^\star)$$
+%
+where $S^{\star}$ is the optimal solution to the problem. An algorithm is then an $\alpha$-approximation algorithm if it is guarantees to always return a solution that is an $\alpha$-approximation, for all inputs.
+
+\subsection{Non-dynamic algorithm}
+
+We now formally describe the algorithm from \citet{mirzasoleiman2013distributed} for distributed submodular maximization that does not deal with insertions and deletions. The ground set $N$ is partitioned into $m$ parts $V_1, \ldots, V_m$. There are $m$ \emph{local machines} each containing a part $V_i$. Each local machine runs the greedy algorithm on its part $V_i$ and obtains a \emph{local solution} $S_i \subseteq V_i$ of size $k$. Each local machine then sends its local solution to the \emph{central machine}. The central machine then aggregates all local solutions and computes a \emph{central solution} by running the greedy algorithm to pick a subset $S \subseteq \cup_i S_i$ that best represents a subset $V$ of the ground set $N$ that the central machine has access to.
+
+By exploiting the submodularity of the problem, the above approach is a $(1-1/e)/ \min(m,k)$ approximation algorithm for the general case of submodular function. This approximation ratio is improved for datasets with certain geometric structures and/or very large datasets. In addition to theoretical guarantees, the effectiveness of this distributed algorithm is also demonstrated with experiments on large collections of images.
