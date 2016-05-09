@@ -104,7 +104,6 @@ def initialinsert(source,initsize,foracle,fcentral,*args):
         # only record selected features
         datum = features(d)
         # randomly select machine for insert
-        print datum
         finsert = randint(1,maxf-1)
         f[finsert].write(datum)
         # give all data to oracle
@@ -126,7 +125,7 @@ def initialinsert(source,initsize,foracle,fcentral,*args):
 # be read by the oracle for performance measurement, performed if
 # isoracle is true. With probability deleteprob, delete an entry
 # from a local/central file and the oracle file. Perform an update
-# every timescale milliseconds. The numbers k, baseport, and thresh
+# every timescale seconds. The numbers k, baseport, and thresh
 # are used in oracle scoring.
 #
 # Input:
@@ -134,7 +133,7 @@ def initialinsert(source,initsize,foracle,fcentral,*args):
 #   initsize: (int) number of entry to start with
 #   maxsize: (int) number of entry to end with
 #   deleteprob: (float) probability of deletion on each round
-#   timescale: (int) ms to wait between updates
+#   timescale: (int) sec to wait between updates
 #   k: (int) size of oracle solution
 #   baseport: (int) used to find logs for scoring
 #   thresh: (int) used to find logs for scoring
@@ -317,7 +316,7 @@ def dodelete(maxf,foracle,fcentral,*args):
 #   source: (string) filename where crime database is saved
 #   initsize: (int) number of entries to start with
 #   maxsize: (int) number of entries to end with
-#   timescale: (int) ms to wait between updates
+#   timescale: (int) sec to wait between updates
 #   deleteprob: (float) probability of deletion on each round
 #   k: (int) size of solution
 #   thresholds: (list of ints) score differences to trigger on,
@@ -347,13 +346,13 @@ def simulate(source,initsize,maxsize,timescale,deleteprob,k,thresholds,baseport,
         
     # start processes
     for t in thresholds:
-    t = thresholds
-    port = baseport + t
-    c = multiprocessing.Process(target=central, args=('./sample/central',k,port,len(args),))
-    c.start()
-    for m,arg in enumerate(args):
-        l = multiprocessing.Process(target=local, args=(arg,k,port,t,m,))
-        l.start()
+    #t = thresholds
+        port = baseport + t
+        c = multiprocessing.Process(target=central, args=('./sample/central',k,port,len(args),))
+        c.start()
+        for m,arg in enumerate(args):
+            l = multiprocessing.Process(target=local, args=(arg,k,port,t,m,))
+            l.start()
 
     # update data with insertions and deletions
     print 'beginning insertion'

@@ -90,7 +90,6 @@ def greedy(V, D, k, e0):
         closest[str(e)] = loss
         losse0 += loss
     for i in range(k):
-        print i
         bestElement = V[0]
         lS = L(e0, D,e0,closest)
         bestContribution = lS - L(e0, D,V[0],closest)

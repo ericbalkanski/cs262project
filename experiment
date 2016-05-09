@@ -1,9 +1,9 @@
 # run experiment
-cd ~/Desktop/cs262project
+cd ~/Desktop/262/cs262project
 rm ./sample/*
 rm ./log/*
 python
 import datamanager
-datamanager.simulate('~/Downloads/chicago.csv',300,500,2000,0,10,[0,1,2,4,6,8,100],2000,1,'./sample/oracle','./sample/central','./sample/loc1','./sample/loc2')
+datamanager.simulate('~/Downloads/Crimes_-_2001_to_present.csv',300,500,1,0,10,[0,1,2,4,6,8,100],2000,1,'./sample/oracle','./sample/central','./sample/loc1','./sample/loc2')
 exit()
 python makeplots.py &
