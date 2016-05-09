@@ -1,19 +1,29 @@
 ############ The greedy algorithm for exemplar clustering #########
 # An implementation of the greedy algorithm that optimizes a function f()
 # under a cardinality constraint k. Also contains an implementation of the
-# examplar-based clustering function f() from 
+# examplar-based clustering loss L() from 
 # https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
-
 
 import copy
 
-# The distance function, simple hamming distance for testing purposes
+# The distance function, which in our case is the hamming distance between
+# two elements, i.e., how many features these elements differ on.
+# Input:
+#  e1: an element which is a list of multiple features
+#  e2: another element which is also a list of multiple features
+# Output:
+#  an integer corresponding to how many features e1 and e2 differ on
+# Assumptions:
+#  The inputs e1 and e2 are assume to be lists of same length where the features
+#  are ordered identically
 def d(e1, e2):
     score = 0
     for i in range(len(e1)):
         if e1[i] != e2[i]:
             score += 1
     return score
+
+
 
 # The loss function for the k-medoid problem defined in Section 3.1
 # of https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
@@ -24,16 +34,10 @@ def d(e1, e2):
 #   An integer corresponding to the loss from having S as exemplars
 # Dependencies:
 #   uses the distance function d(.,.) that is dependent on the application
-def L(e0, D, new, closest):
-    score = 0
-    for e1 in D:
-        score += min(closest[str(e1)], d(e1, new))
-    return score
-
 def loss(S,D):
     score = 0
     for e1 in D:
-        closest = 10000
+        closest = 10000 # an arbitrarily high integer
         for e2 in S:
             dist = d(e1,e2)
             if dist < closest:
@@ -41,20 +45,30 @@ def loss(S,D):
         score += closest
     return score
 
-"""   
-# Computes the value of set S over ground set D as described in Section 3.1
-# of https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
-# Input:
-#   S: a list of elements for which we want the value
-#   D: a list of elements correponding to the ground set of elements
-#   e0: an auxiliary element    
+# Computes the loss associated with adding element new to the current solution
+# maintained by closest. This function could just use loss() previously defined,
+# the advantage here is a faster runtime since greedy can maintain a dictionary 
+# closest of the current closest points while only searching for element new
+# with the best marginal contribution
+#   e0: an auxiliary element
+#   D: a list of elements correponding to the ground set of elements  
+#   new: an element that is being considered to be added to the solution 
+#        maintained by the greedy algorithm
+#  closest: a dictionarry mapping the elements in D to their closest element
+#           in the solution S maintained by the greedy algorithm according to 
+#           the distance function d()
 # Output:
-#   An integer corresponding to the value of S
+#   An integer corresponding to the loss from having the solution S' = S U new
+#   as the set of exemplars where S is the solution associated with the 
+#   dictionary closest
 # Dependencies:
-#   uses the loss L() function defined above
-#def f(S, D, e0):
-#    return  - L(S,e0, D)
-"""
+#   uses the distance function d(.,.) that is dependent on the application
+def L(e0, D, new, closest):
+    score = 0
+    for e1 in D:
+        score += min(closest[str(e1)], d(e1, new))
+    return score
+    
     
 # The classical greedy algorithm for maximizing f() with at most k elements
 # Input:
@@ -93,9 +107,18 @@ def greedy(V, D, k, e0):
     score = losse0 - L(e0,D,e0,closest)
     return (S,score)
 
-
+# Computes the value of set S over ground set D as described in Section 3.1
+# of https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
+# Input:
+#   S: a list of elements for which we want the value
+#   D: a list of elements correponding to the ground set of elements
+#   e0: an auxiliary element    
+# Output:
+#   An integer corresponding to the value of S
+# Dependencies:
+#   uses the loss function loss() defined above
 def score(S,D,e0):
-    copyS = copy.deepcopy(S)
+    copyS = copy.copy(S)
     copyS.append(e0)
     return loss([e0],D) - loss(copyS,D)
     
