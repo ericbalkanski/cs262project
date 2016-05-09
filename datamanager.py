@@ -1,37 +1,10 @@
-########### A data-generation simulator ###############
-# Reads data from a file or website,
-# writing it to file associated with machines,
-# selecting the machine uniformly at random.
-#
-# Input:
-#   source: csv file containing all test data
-#   initsize: number of datapoints written to files
-#             before long pause
-#   maxsize: total number of datapoints written to files
-#   timescale: pause between updates
-#   foracle: data file for oracle (used in scoring)
-#   fcentral: data file for central machine
-#   *args: data file for local machines
-#
-# Output:
-#    none, writes data to files as side effect
-#
-# Imports:
-#   itertools.islice: allows access to parts of files
-#   random.randint: generates random integers for machine selection
-#   random.random: generates random floats between 0 and 1, for deletion
-#   time.sleep: allows pause before and between updates
-#   time.time: allows system time in logs
-#   os.rename: allows swap file for deleting entries
-#   local.local: runs local machine, allows oracle score to be logged
-#   csv.reader: separates data elements without splitting on commas
-#               within quoted strings, as are found in our data
-#   multiprocessing: starts local, central, and oracle simulations
-#   greedy.score: score central machine solutions
-#
-# TODO:
-# - read from website?
-# - document each function
+########### Data-generation Functions ###############
+# Functions to read Chicago crime data from a file,
+# preprocess it, and write it to files assigned to processes,
+# selecting the process uniformly at random. See in
+# particular datagenerator.simulate, which initializes
+# local data, starts central and local machines, updates
+# data, and computes oracle scores.
 #############################################
 
 from itertools import islice
@@ -45,10 +18,19 @@ from local import local
 from central import central
 from greedy import score
 
-
-# select features. we keep time of day, primary crime type,
-# location description, arrest (boolean), domestic (boolean),
-# and district #. See Chicago crime database for details.
+########### a data preprocessing function ###############
+# features(d):
+# Sample from the features provided. We keep time of day,
+# primary crime type, location description, arrest (boolean),
+# domestic (boolean), and district number.
+# See Chicago crime database for details.
+# To use Boston dataset, see comments.
+#
+# Input:
+#   d: a single entry read from crime database
+#
+# Output: a comma separated string of desired features
+##############################################
 def features(d):
     # sort times into 6 4-hour windows
     timestr = d[2]
@@ -80,7 +62,29 @@ def features(d):
     #   isarrest = 'false'
     # return d[10]+','+d[2]+',"NA",'+isarrest+','+d[9]+','+d[4]+'\n'
 
+########### a data file initialization function ###############
+# initialinsert(source,initsize,foracle,fcentral,*args):
+# Read from file source, preprocess the first initsize entries,
+# and write them uniformly at random to fcentral (to be accessed
+# by the central machine) or one of *args (the files to be accessed
+# by each local machine). Also, write every entry to foracle to
+# be read by the oracle for performance measurement.
 #
+# Input:
+#   source: (string) filename where crime database is saved
+#   initsize: (int) number of entries to insert
+#   foracle: (string) filename to write oracle data
+#   fcentral: (string) filename to write central machine's data
+#   *args: (strings) filenames to write local machines' data
+#
+# Output: None, writes data to files as side effect.
+#
+# Imports:
+#   itertools.islice: allows access to parts of files
+#   random.randint: generates random integers for machine selection
+#   csv.reader: separates data elements without splitting on commas
+#               within quoted strings, as are found in our data
+##############################################
 def initialinsert(source,initsize,foracle,fcentral,*args):
    # open source file
     data = open(source,'r')
@@ -111,7 +115,46 @@ def initialinsert(source,initsize,foracle,fcentral,*args):
     data.close()
     print 'data initialized'
 
+########### a data file update function ###############
+# update(source,initsize,maxsize,deleteprob,timescale,
+#        k,baseport,thresh,isoracle,foracle,fcentral,*args):
+# Read from file source, preprocess entries betwen initsize and maxsize,
+# and write them uniformly at random to fcentral (to be accessed
+# by the central machine) or one of *args (the files to be accessed
+# by each local machine). Also, write every entry to foracle to
+# be read by the oracle for performance measurement, performed if
+# isoracle is true. With probability deleteprob, delete an entry
+# from a local/central file and the oracle file. Perform an update
+# every timescale milliseconds. The numbers k, baseport, and thresh
+# are used in oracle scoring.
 #
+# Input:
+#   source: (string) filename where crime database is saved
+#   initsize: (int) number of entry to start with
+#   maxsize: (int) number of entry to end with
+#   deleteprob: (float) probability of deletion on each round
+#   timescale: (int) ms to wait between updates
+#   k: (int) size of oracle solution
+#   baseport: (int) used to find logs for scoring
+#   thresh: (int) used to find logs for scoring
+#   isoracle: (bool) used to turn oracle scoring on or off
+#   foracle: (string) filename to write oracle data
+#   fcentral: (string) filename to write central machine's data
+#   *args: (strings) filenames to write local machines' data
+#
+# Output: None, writes data to files as side effect.
+#
+# Imports:
+#   csv.reader: separates data elements without splitting on commas
+#               within quoted strings, as are found in our data
+#   itertools.islice: allows access to parts of files
+#   random.randint: generates random integers for machine selection
+#   random.random: generates random floats between 0 and 1, for deletion
+#   time.sleep: allows pause before and between updates
+#   local.local: runs local process on oracle file for scoring
+#   greedy.score: as oracle, score central machine solutions on whole dataset
+#   time.time: allows system time in logs
+##############################################
 def update(source,initsize,maxsize,deleteprob,timescale,k,baseport,thresh,isoracle,foracle,fcentral,*args):
     # read data from file
     data = open(source,'r')
@@ -148,7 +191,11 @@ def update(source,initsize,maxsize,deleteprob,timescale,k,baseport,thresh,isorac
         oracle = open(foracle,'a')
         oracle.write(datum)
         oracle.close()
-
+    
+        if not isoracle:
+            # pause between insertions
+            sleep(timescale)
+    
         if isoracle:
             # get oracle score
             local(foracle,k,-1,0,-1)
@@ -158,10 +205,10 @@ def update(source,initsize,maxsize,deleteprob,timescale,k,baseport,thresh,isorac
         
             # score current central solutions
             for p in thresh:
-                # get central solution
                 port = baseport+p
                 fcentreps = './log/central_solution_'+str(port)
                 try:
+                    # get central solution
                     centreps = open(fcentreps,'r')
                     centsol = []
                     for rep in reader(centreps):
@@ -195,14 +242,34 @@ def update(source,initsize,maxsize,deleteprob,timescale,k,baseport,thresh,isorac
     print 'out of data, closing source file.', maxsize, ' datapoints used'
     data.close()
 
+########### a datapoint deletion function ###############
+# dodelete(maxf,foracle,fcentral,*args):
+# Delete one entry at random, selecting from maxf entries.
+# Delete it from both the central or local file it's in and
+# the oracle file, which holds all data.
+# WARNING: BUGGY AND EXPENSIVE
 #
+# Input:
+#   maxf: (int) number of datapoints to delete from
+#   foracle: (string) filename holding oracle data
+#   fcentral: (string) filename holding central machine's data
+#   *args: (strings) filenames holding local machines' data
+#
+# Output: None, writes data to files as side effect.
+#
+# Imports:
+#   random.randint: generates random integers for machine and entry selection
+#   os.rename: allows swap file for deleting entries
+##############################################
 def dodelete(maxf,foracle,fcentral,*args):
     # pick machine and line to delete
     fdelete = randint(1,maxf-1)
     if fdelete == 1:
-        f = open(fcentral,'?')
+        print 'deleting from central machine'
+        f = open(fcentral,'r')
     else:
-        f = open(args[fdelete-2],'?')
+        print 'deleting from local machine ' + str(fdelete-2)
+        f = open(args[fdelete-2],'r')
    
    # stop if there's nothing in the file
     fsize = sum(1 for entry in f)
@@ -213,7 +280,8 @@ def dodelete(maxf,foracle,fcentral,*args):
     edelete = randint(0,fsize-1)
 
     # delete entry
-    swap = open('./swap')
+    swap = open('./swap','w')
+    deleted = ''
     for i,entry in enumerate(f):
         if i != edelete:
             swap.write(entry)
@@ -224,30 +292,60 @@ def dodelete(maxf,foracle,fcentral,*args):
     if fdelete == 1:
         rename('./swap',fcentral)
     else:
-        rename('./swap',args[fedelte-2])
+        rename('./swap',args[fdelete-2])
 
     # also delete from oracle file
-    swap = open('./swap')
-    for entry in open(foracle,'r'):
+    swap = open('./swap','w')
+    oracle = open(foracle,'r')
+    for entry in oracle:
         if entry != deleted:
             swap.write(entry)
-    foracle.close()
+    oracle.close()
     swap.close()
     rename('./swap',foracle)
 
+########### a system simulation function ###############
+# simulate(source,initsize,maxsize,timescale,deleteprob,
+#          k,thresholds,baseport,isoracle,foracle,fcentral,*args):
+# Initialize data files with first initsize entries from source,
+# then start central and local machines that compute k best reps
+# for a list of thresholds. Update data files until maxsize entries
+# have been used.
 #
-def datamanager(source,initsize,maxsize,timescale,deleteprob,k,thresholds,baseport,isoracle,foracle,fcentral,*args):
+# Input:
+#   source: (string) filename where crime database is saved
+#   initsize: (int) number of entries to start with
+#   maxsize: (int) number of entries to end with
+#   timescale: (int) ms to wait between updates
+#   deleteprob: (float) probability of deletion on each round
+#   k: (int) size of solution
+#   thresholds: (list of ints) score differences to trigger on,
+#               each corresponds to its own central+locals simulation
+#   baseport: (int) central/local ports and log names based on this
+#   isoracle: (bool) used to turn oracle scoring on or off
+#   foracle: (string) filename for oracle data
+#   fcentral: (string) filename for central machine's data
+#   *args: (strings) filenames for local machines' data
+#
+# Output: None, writes data to files as side effect.
+#
+# Imports:
+#   multiprocessing: starts local, central, and oracle simulations
+#   local.local: runs local machine, allows oracle + local simulation
+#   central.central: runs central machine, for simulation
+##############################################
+def simulate(source,initsize,maxsize,timescale,deleteprob,k,thresholds,baseport,isoracle,foracle,fcentral,*args):
     
     # insert initial data
     initialinsert(source,initsize,foracle,fcentral,*args)
     
-    # determine limits of data
+    # determine limits of data -- in practice, this is far too expensive to matter
     #if maxsize < initsize:
     #    maxsize = initsize;
         # maxsize = sum(1 for datum in data) # size of source
         
     # start processes
-    #for t in thresholds:
+    for t in thresholds:
     t = thresholds
     port = baseport + t
     c = multiprocessing.Process(target=central, args=('./sample/central',k,port,len(args),))

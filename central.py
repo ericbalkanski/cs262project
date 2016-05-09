@@ -1,12 +1,16 @@
 ########### A Central Machine ###############
-# The central machine first receives solutions from the m local machines,
-# then loads data D from filename, and then find the best subset of size at 
-# most k of the union all the local solutions V that best represents data D.
+# central.central(filename,k,port,m):
+# The central machine receives up-to-date solutions
+# from the m local machines, and each time loads
+# data D from file filename to find the best subset
+# of size at most k of the union all the local
+# solutions V that best represents data D.
+#
 # Input:
-#   filename: a string that contains the data D that needs to represented
-#   k: an integer that is the cardinality constraint for the solution
-#   m: an integer that is the number of local machines that this central 
-#      machines should receive local solutions from.
+#   filename: (string) names the file holding data D to be represented
+#   k: (int) # of reps in requested solution set
+#   port: (int) port number for communication via socket library
+#   m: (int) # of local machines
 #
 # Output:
 #   none, writes reps and scores to log as side effect
@@ -15,6 +19,7 @@
 #   socket: receive messages from local machines
 #   greedy: our module, see greedy.py
 #   json: decodes data sent over wire
+#   copy.deepcopy: to use lists by value, not reference
 #   csv.reader: separates data elements without splitting on commas
 #               within quoted strings, as are found in our data
 #   time.time: records system time for logging
@@ -24,7 +29,7 @@
 import socket
 import greedy 
 import json
-import copy
+from copy import deepcopy
 from csv import reader
 from time import time
 from os import stat
@@ -63,7 +68,7 @@ def central(filename, k, port, m):
         # process received reps
         i,Vi = json.loads(data)
         print 'CENTRAL port ' + str(port) + ', data received from machine ' + str(i)
-        V[i] = copy.deepcopy(Vi)
+        V[i] = deepcopy(Vi)
         Vflat = []
         for v in V:
             Vflat += v
