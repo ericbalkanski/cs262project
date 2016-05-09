@@ -1,2 +1,25 @@
 \section{Experiments}
 \label{s:experiments}
+
+We tested the performance of our algorithm for several thresholds, finding 10 representatives initialized on 300 entries from the Chicago crime dataset, as 200 insertions were performed. On each insertion, the central solution corresponding to each threshold was scored, as was the oracle solution found by optimizing over the data found in all local and central files. The raw scores are shown in figure \ref{fig:scores} for each insertion and threshold.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{scores}
+    \caption{Raw scores for solutions found under varying thresholds (colors), effectively infinite solution (black with stars), and with access to all data (black line).}
+    \label{fig:scores}
+\end{figure}
+
+In black, the oracle's solution improves steadily, while in black stars a naive never-update algorithm is shown to perform better than one might expect, given the near-doubling of the dataset. The colored lines in between show that by using a threshold, performance can be increased even to level of the global greedy solution with far less frequent communication. More revealing is the approximation ratio between the oracle and central scores, shown in figure \ref{fig:ratio}.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{ratio}
+    \caption{Scores from figure \ref{fig:scores}, normalized by oracle score.}
+    \label{fig:ratio}
+\end{figure}
+
+This measurement, for which 1 is optimal and lower numbers indicate better performance, shows that thresholds improve performance over the naive baseline, though their ordering is fairly variable. We even see the thresholded performance underperforming the naive solution near 330 entries. This plot tells us that a threshold can be expected to usually but not strictly improve performance, and that in the case of this dataset the threshold can exceed half of the representatives (6 changes out of 10) without a serious loss in performance. The threshold of 8 cannot be seen in this plot because it is identical to the naive never-update performance, indicating a major change in behavior between these settings. Finding this tradeoff point for other datasets will determine the lowest communication cost for sensitivity to data changes.
+
+For details on the generation of these plots and the underlying data, see the README.
+>>>>>>> a570da07896b9963296c2572e0edde895d1fbe1f

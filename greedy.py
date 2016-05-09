@@ -29,7 +29,7 @@ def d(e1, e2):
 # of https://las.inf.ethz.ch/files/mirzasoleiman13distributed.pdf
 # Input:
 #   S: a list of elements which are the exemplars
-#   D: a list of elements correponding to the ground set of elements   
+#   D: a list of elements correponding to the ground set of elements
 # Output:
 #   An integer corresponding to the loss from having S as exemplars
 # Dependencies:
@@ -72,16 +72,16 @@ def L(e0, D, new, closest):
     
 # The classical greedy algorithm for maximizing f() with at most k elements
 # Input:
-#   V: a list of elements that are exemplars candidates 
-#   D: a list of elements that the exemplars should represent 
+#   V: a list of elements that are exemplars candidates
+#   D: a list of elements that the exemplars should represent
 #     (V = D on local machines but not on central machine)
 #   k: an integer that is the cardinality constraint for greedy
-#   e0: an auxiliary element 
+#   e0: an auxiliary element
 # Output:
 #   S: a list of k elements from V that represent D well
 # Dependencies:
 #   uses the function f() that we wish to optimize defined above
-def greedy(V, D, k, e0): 
+def greedy(V, D, k, e0):
     S = []
     closest = dict()
     losse0 = 0
@@ -122,3 +122,4 @@ def score(S,D,e0):
     copyS.append(e0)
     return loss([e0],D) - loss(copyS,D)
     
+
