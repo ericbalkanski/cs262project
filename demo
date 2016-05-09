@@ -1,0 +1,30 @@
+# demo for presentation
+
+# term1: input data
+cd ~/Desktop/cs262project
+rm ./sample/*
+rm ./log/*
+python
+import datamanager
+datamanager.initialinsert('./data.csv',500,'./sample/oracle','./sample/central','./sample/loc0','./sample/loc1')
+
+# term2: start central
+cd ~/Desktop/cs262project
+python
+from central import central
+central(filename='./sample/central',k=10,port=2000,m=2)
+
+# term3: start local
+cd ~/Desktop/cs262project
+python
+from local import local
+local(filename='./sample/loc0',k=10,port=2000,threshold=0,idnum=0)
+
+# term4: start local
+cd ~/Desktop/cs262project
+python
+from local import local
+local(filename='./sample/loc1',k=10,port=2000,threshold=0,idnum=1)
+
+# term1: insert data
+datamanager.update('./data.csv',500,510,0,2,10,2000,0,0,'./sample/oracle','./sample/central','./sample/loc0','./sample/loc1')
