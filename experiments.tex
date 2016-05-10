@@ -1,8 +1,9 @@
 \section{Experiments}
 \label{s:experiments}
 
-\vspace{3em}
-\begin{table}
+Semantically, we found that our system's results were reasonable. The crimes were well-distributed, repeated crimes were generally quite different (a common feature was that battery would be repeated, with domestic events in the home showing up separately from nondomestic outdoor battery leading to arrest), but also showed that some times of day and districts were more or less likely to contain crime (e.g. few afternoon crimes, multiple representatives from ``bad neighborhoods"). A sample set of 10 representatives is shown, in no particular order, in Figure \ref{tab:1}.
+
+\begin{figure}
 \begin{tabular}{cccccc}
 Time of Day & Crime & Location & Arrest & Domestic & District \\
 \hline
@@ -18,29 +19,36 @@ NIGHT & BATTERY & SIDEWALK & false & false & 012\\
 EVENING & BATTERY & RESIDENCE & false & true & 004\\
 \hline
 \end{tabular}
-\caption{Example representatives}
-\label{tab:exreps}
-\end{table}
-\vspace{3em}
+\caption{A summary of crimes in Chicago of size 10.}
+\label{tab:1}
+\end{figure}
 
-Semantically, we found that our system's results were reasonable. The crimes were well-distributed, repeated crimes were generally quite different (a common feature was that battery would be repeated, with domestic events in the home showing up separately from nondomestic outdoor battery leading to arrest), but also showed that some times of day and districts were more or less likely to contain crime (e.g. few afternoon crimes, multiple representatives from ``bad neighborhoods"). A sample set of 10 representatives is shown, in no particular order, in table \ref{tab:exreps}.
 
-Quantitatively, we tested the performance of our algorithm for several thresholds, finding 10 representatives initialized on 300 entries from the Chicago crime dataset with 2 local processes, as 200 insertions were performed. On each insertion, the central solution corresponding to each threshold was scored, as was the oracle solution found by optimizing over the data found in all local and central files. The raw scores are shown in figure \ref{fig:scores} for each insertion and threshold.
+Quantitatively, we tested the performance of our algorithm for several thresholds $t$ (see Section~\ref{s:approach} for definition), finding 10 representatives initialized on 300 entries from the Chicago crime dataset with 2 local processes, as 200 insertions were performed. We only used 2 local processes to maximize the impact of a small number of insertions or deletions. On each insertion, the central solution corresponding to each threshold was scored, as was the oracle solution (defined below). The raw scores (defined below) are shown in Figure \ref{fig:scores} for each insertion and threshold.
+\begin{itemize}
+\item \textbf{Raw score.} The raw score, also called $f$ score, of a set $S$ obtained is simply the value $f(S)$ where $f(\cdot)$ is defined in Section~\ref{s:prelim} and that we aim to maximize.
+
+\item \textbf{Oracle score.} The raw score obtained by running the greedy algorithm on the entire dataset.
+
+\item \textbf{Approximation ratio.} Note that it is computationally unfeasible to find the optimal solution maximizing $f(\cdot)$, we therefore use the oracle score as a proxy for the optimal solution when measuring approximation ratios, defined in Section~\ref{s:prelim}. Recall that we wish to minimize the approximation ratio.
+\end{itemize}
+
+In black, the oracle's solution improves steadily, while in black stars a naive never-update algorithm is shown to perform better than one might expect, given the near-doubling of the dataset. The colored lines in between show that by using a threshold, performance can be increased even to level of the global greedy solution with far less frequent communication. More revealing is the approximation ratio between the oracle and central scores, shown in Figure \ref{fig:ratio}.
 
 \begin{figure}
     \centering
     \includegraphics[width=\linewidth]{scores}
-    \caption{Raw scores for solutions found under varying thresholds (colors), effectively infinite solution (black with stars), and with access to all data (black line).}
+    \caption{Raw scores for solutions found under varying thresholds $t$ (colors), effectively infinite solution (black with stars), and with access to all data (black line).}
     \label{fig:scores}
 \end{figure}
-
-In black, the oracle's solution improves steadily, while in black stars a naive never-update algorithm is shown to perform better than one might expect, given the near-doubling of the dataset. The colored lines in between show that by using a threshold, performance can be increased even to level of the global greedy solution with far less frequent communication. More revealing is the approximation ratio between the oracle and central scores, shown in figure \ref{fig:ratio}.
 
 \begin{figure}
     \centering
     \includegraphics[width=\linewidth]{ratio}
-    \caption{Scores from figure \ref{fig:scores}, normalized by oracle score.}
+    \caption{Approximation ratios obtained from figure \ref{fig:scores}.}
     \label{fig:ratio}
 \end{figure}
 
 This measurement, for which 1 is optimal and lower numbers indicate better performance, shows that thresholds improve performance over the naive baseline, though their ordering is fairly variable. We even see the thresholded performance underperforming the naive solution near 330 entries. This plot tells us that a threshold can be expected to usually but not strictly improve performance, and that in the case of this dataset the threshold can exceed half of the representatives (6 changes out of 10) without a serious loss in performance. The threshold of 8 cannot be seen in this plot because it is identical to the naive never-update performance, indicating a major change in behavior between these settings. Finding this tradeoff point for other datasets will determine the lowest communication cost for sensitivity to data changes.
+
+For details on the generation of these plots and the underlying data, see the README file on github.
